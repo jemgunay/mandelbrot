@@ -1,6 +1,7 @@
 # Zoomable Mandelbrot
 
-WASD to move around, RF to zoom in/out.
+- WASD to shift vertically/horizontally.
+- RF to zoom in/out.
 
 ## Build & Run
 
