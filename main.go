@@ -33,7 +33,7 @@ const (
 func main() {
 	// process flags
 	flag.UintVar(&iterations, "iterations", 200, "the number of mandelbrot iterations")
-	flag.Float64Var(&windowSize, "size", 720, "the window size")
+	flag.Float64Var(&windowSize, "size", 500, "the window size")
 	flag.Parse()
 
 	fmt.Printf("Generating Mandelbrot for %d iterations at %dx%d\n", iterations, int(windowSize), int(windowSize))
@@ -75,6 +75,9 @@ func start() {
 	frameRateLimiter := time.Tick(time.Second / 120)
 	initialBoundsSize := mandelbrotBounds.Size()
 
+	// initial offset to centre window over a zoomable area within the set
+	mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(-0.6, -0.43))
+
 	// main game loop
 	for !win.Closed() {
 		scaleFactor := initialBoundsSize.ScaledXY(mandelbrotBounds.Size()).Scaled(0.001)
@@ -85,20 +88,17 @@ func start() {
 		}
 		if win.Pressed(pixelgl.KeyR) {
 			mandelbrotBounds = mandelbrotBounds.Resized(mandelbrotBounds.Center(), mandelbrotBounds.Size().Scaled(0.997))
-		}
-		if win.Pressed(pixelgl.KeyF) {
+		} else if win.Pressed(pixelgl.KeyF) {
 			mandelbrotBounds = mandelbrotBounds.Resized(mandelbrotBounds.Center(), mandelbrotBounds.Size().Scaled(1.003))
 		}
 		if win.Pressed(pixelgl.KeyA) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(-scaleFactor.X, 0))
-		}
-		if win.Pressed(pixelgl.KeyD) {
+		} else if win.Pressed(pixelgl.KeyD) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(scaleFactor.X, 0))
 		}
 		if win.Pressed(pixelgl.KeyS) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(0, -scaleFactor.Y))
-		}
-		if win.Pressed(pixelgl.KeyW) {
+		} else if win.Pressed(pixelgl.KeyW) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(0, scaleFactor.Y))
 		}
 
