@@ -13,12 +13,12 @@ import (
 )
 
 var (
-	windowBounds     = pixel.R(0, 0, 1080, 1080)
+	iterations       uint
+	windowSize       float64
+	windowBounds     pixel.Rect
 	mandelbrotBounds = pixel.R(-2, -2, 2, 2)
-	initialSize      = mandelbrotBounds.Size()
-	iterations       uint8
 
-	pixelData        = pixel.MakePictureData(windowBounds)
+	pixelData        *pixel.PictureData
 	mandelbrotSprite *pixel.Sprite
 	// mutex serialises access to the drawable pixel data
 	mandelbrotMu sync.RWMutex
@@ -32,11 +32,11 @@ const (
 
 func main() {
 	// process flags
-	iterationsFlag := flag.Uint("iterations", 200, "the number of mandelbrot iterations")
+	flag.UintVar(&iterations, "iterations", 200, "the number of mandelbrot iterations")
+	flag.Float64Var(&windowSize, "size", 720, "the window size")
 	flag.Parse()
-	iterations = uint8(*iterationsFlag)
 
-	fmt.Printf("Generating for %d iterations\n", iterations)
+	fmt.Printf("Generating Mandelbrot for %d iterations at %dx%d\n", iterations, int(windowSize), int(windowSize))
 
 	pixelgl.Run(func() {
 		start()
@@ -44,6 +44,8 @@ func main() {
 }
 
 func start() {
+	windowBounds = pixel.R(0, 0, windowSize, windowSize)
+
 	// create window config
 	cfg := pixelgl.WindowConfig{
 		Title:     "Mandelbrot",
@@ -59,6 +61,8 @@ func start() {
 		return
 	}
 
+	pixelData = pixel.MakePictureData(windowBounds)
+
 	// generate initial mandelbrot and continue to generate a fresh copy independent of the main thread
 	generate()
 	go func() {
@@ -68,33 +72,33 @@ func start() {
 	}()
 
 	// limit update cycles to 30 FPS
-	frameRateLimiter := time.Tick(time.Second / 30)
+	frameRateLimiter := time.Tick(time.Second / 120)
+	initialBoundsSize := mandelbrotBounds.Size()
 
 	// main game loop
 	for !win.Closed() {
-		scaleFactor := initialSize.ScaledXY(mandelbrotBounds.Size()).Scaled(0.001)
+		scaleFactor := initialBoundsSize.ScaledXY(mandelbrotBounds.Size()).Scaled(0.001)
 
 		// handle keyboard input
-		switch {
-		case win.JustPressed(pixelgl.KeyEscape):
+		if win.JustPressed(pixelgl.KeyEscape) {
 			return
-
-		case win.Pressed(pixelgl.KeyR):
-			mandelbrotBounds = mandelbrotBounds.Resized(mandelbrotBounds.Center(), mandelbrotBounds.Size().Scaled(0.97))
-
-		case win.Pressed(pixelgl.KeyF):
-			mandelbrotBounds = mandelbrotBounds.Resized(mandelbrotBounds.Center(), mandelbrotBounds.Size().Scaled(1.03))
-
-		case win.Pressed(pixelgl.KeyA):
+		}
+		if win.Pressed(pixelgl.KeyR) {
+			mandelbrotBounds = mandelbrotBounds.Resized(mandelbrotBounds.Center(), mandelbrotBounds.Size().Scaled(0.997))
+		}
+		if win.Pressed(pixelgl.KeyF) {
+			mandelbrotBounds = mandelbrotBounds.Resized(mandelbrotBounds.Center(), mandelbrotBounds.Size().Scaled(1.003))
+		}
+		if win.Pressed(pixelgl.KeyA) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(-scaleFactor.X, 0))
-
-		case win.Pressed(pixelgl.KeyD):
+		}
+		if win.Pressed(pixelgl.KeyD) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(scaleFactor.X, 0))
-
-		case win.Pressed(pixelgl.KeyS):
+		}
+		if win.Pressed(pixelgl.KeyS) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(0, -scaleFactor.Y))
-
-		case win.Pressed(pixelgl.KeyW):
+		}
+		if win.Pressed(pixelgl.KeyW) {
 			mandelbrotBounds = mandelbrotBounds.Moved(pixel.V(0, scaleFactor.Y))
 		}
 
@@ -114,14 +118,11 @@ func start() {
 
 // generates a fresh mandelbrot represented in pixel.Sprite form
 func generate() {
-	height := windowBounds.H()
-	width := windowBounds.W()
+	for py := 0.0; py < windowSize; py++ {
+		y := py/windowSize*(mandelbrotBounds.Max.Y-mandelbrotBounds.Min.Y) + mandelbrotBounds.Min.Y
 
-	for py := 0.0; py < height; py++ {
-		y := py/height*(mandelbrotBounds.Max.Y-mandelbrotBounds.Min.Y) + mandelbrotBounds.Min.Y
-
-		for px := 0.0; px < width; px++ {
-			x := px/width*(mandelbrotBounds.Max.X-mandelbrotBounds.Min.X) + mandelbrotBounds.Min.X
+		for px := 0.0; px < windowSize; px++ {
+			x := px/windowSize*(mandelbrotBounds.Max.X-mandelbrotBounds.Min.X) + mandelbrotBounds.Min.X
 			z := complex(x, y)
 
 			// set individual pixel image data
@@ -139,7 +140,7 @@ func generate() {
 func processPixel(c complex128) color.RGBA {
 	var z complex128
 
-	for n := uint8(0); n < iterations; n++ {
+	for n := uint8(0); n < uint8(iterations); n++ {
 		z = z*z + c
 
 		if cmplx.Abs(z) > 16 {

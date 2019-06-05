@@ -6,5 +6,6 @@
 ## Build & Run
 
 ```bash
-go build && ./mandelbrot
+go build
+./mandelbrot -iterations=200 -size=720
 ```
